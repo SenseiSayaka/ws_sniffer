@@ -1,3 +1,9 @@
+Зависимости:
+
+sudo apt-get install zlib1g-dev
+
+
+
 Быстрый тест полного цикла
 1. Скомпилируйте снифер:
 g++ -o ws_sniffer ws_sniffer.cpp -lpcap -lz -std=c++11
