@@ -11,6 +11,10 @@
 #include <unistd.h>
 #include <iomanip>
 #include <zlib.h>
+#include <csignal>
+
+// Forward declaration
+class WebSocketSniffer;
 
 struct WebSocketMessage {
     std::string timestamp;
@@ -217,7 +221,7 @@ private:
             
             captured_messages.push_back(msg);
             
-            std::cout << "   Перехвачено сообщение #" << captured_messages.size() << std::endl;
+            std::cout << "📦 Перехвачено сообщение #" << captured_messages.size() << std::endl;
             std::cout << "   " << msg.src_ip << ":" << msg.src_port 
                      << " -> " << msg.dst_ip << ":" << msg.dst_port << std::endl;
             std::cout << "   Тип: " << opcodeToString(msg.opcode) 
@@ -251,10 +255,10 @@ private:
                 }
                 std::cout << std::endl;
             } else if (msg.opcode == 0x2) { // Binary frame
-                std::cout << "     Бинарные данные: ";
+                std::cout << "   🔢 Бинарные данные: ";
                 printHex(msg.payload.data(), msg.payload.size(), 32);
             } else if (msg.opcode == 0x8) { // Close frame
-                std::cout << "     Закрытие соединения";
+                std::cout << "   👋 Закрытие соединения";
                 if (msg.payload.size() >= 2) {
                     uint16_t code = (msg.payload[0] << 8) | msg.payload[1];
                     std::cout << ", код: " << code;
@@ -265,9 +269,9 @@ private:
                 }
                 std::cout << std::endl;
             } else if (msg.opcode == 0x9) {
-                std::cout << "      Ping" << std::endl;
+                std::cout << "   🏓 Ping" << std::endl;
             } else if (msg.opcode == 0xA) {
-                std::cout << "      Pong" << std::endl;
+                std::cout << "   🏓 Pong" << std::endl;
             }
             
             std::cout << std::endl;
@@ -319,7 +323,7 @@ public:
             return false;
         }
         
-        std::cout << "   Начат перехват WebSocket сообщений";
+        std::cout << "🎯 Начат перехват WebSocket сообщений";
         if (port > 0) std::cout << " на порту " << port;
         std::cout << "..." << std::endl;
         std::cout << "   (Нажмите Ctrl+C для остановки)" << std::endl << std::endl;
@@ -327,7 +331,7 @@ public:
         pcap_loop(handle, 0, packetHandler, reinterpret_cast<u_char*>(this));
         
         // Статистика после остановки
-        std::cout << "\n   Захват остановлен" << std::endl;
+        std::cout << "\n🛑 Захват остановлен" << std::endl;
         std::cout << "   Всего перехвачено сообщений: " << captured_messages.size() << std::endl;
         
         return true;
@@ -341,13 +345,13 @@ public:
     
     void saveMessages(const std::string& filename) {
         if (captured_messages.empty()) {
-            std::cout << "    Нет сообщений для сохранения" << std::endl;
+            std::cout << "⚠️  Нет сообщений для сохранения" << std::endl;
             return;
         }
         
         std::ofstream out(filename, std::ios::binary);
         if (!out) {
-            std::cerr << "   Ошибка создания файла" << std::endl;
+            std::cerr << "❌ Ошибка создания файла" << std::endl;
             return;
         }
         
@@ -386,13 +390,13 @@ public:
             else control_count++;
         }
         
-        std::cout << "\n    Сохранение завершено!" << std::endl;
-        std::cout << "      Файл: " << filename << std::endl;
-        std::cout << "      Всего сообщений: " << count << std::endl;
-        std::cout << "      Текстовых: " << text_count << std::endl;
-        std::cout << "      Бинарных: " << binary_count << std::endl;
-        std::cout << "      Управляющих: " << control_count << std::endl;
-        std::cout << "      Общий размер данных: " << total_size << " байт";
+        std::cout << "\n✅ Сохранение завершено!" << std::endl;
+        std::cout << "   📁 Файл: " << filename << std::endl;
+        std::cout << "   📦 Всего сообщений: " << count << std::endl;
+        std::cout << "   📝 Текстовых: " << text_count << std::endl;
+        std::cout << "   🔢 Бинарных: " << binary_count << std::endl;
+        std::cout << "   ⚙️  Управляющих: " << control_count << std::endl;
+        std::cout << "   💾 Общий размер данных: " << total_size << " байт";
         if (total_size > 1024) {
             std::cout << " (" << std::fixed << std::setprecision(2) 
                      << (total_size / 1024.0) << " КБ)";
@@ -440,7 +444,7 @@ public:
             captured_messages.push_back(msg);
         }
         
-        std::cout << "  Загружено " << count << " сообщений из " << filename << std::endl;
+        std::cout << "✅ Загружено " << count << " сообщений из " << filename << std::endl;
         return true;
     }
     
@@ -450,7 +454,7 @@ public:
             return;
         }
         
-        std::cout << "\n   Список захваченных сообщений:\n" << std::endl;
+        std::cout << "\n📋 Список захваченных сообщений:\n" << std::endl;
         for (size_t i = 0; i < captured_messages.size(); i++) {
             const auto& msg = captured_messages[i];
             std::cout << "[" << i + 1 << "] " << msg.timestamp << std::endl;
@@ -488,7 +492,7 @@ public:
         addr.sin_port = htons(target_port);
         inet_pton(AF_INET, target_ip.c_str(), &addr.sin_addr);
         
-        std::cout << "Повтор сообщения #" << (index + 1) << " на " 
+        std::cout << "🔄 Повтор сообщения #" << (index + 1) << " на " 
                  << target_ip << ":" << target_port << "..." << std::endl;
         
         if (connect(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
@@ -514,16 +518,27 @@ public:
         // Отправка payload
         send(sock, reinterpret_cast<const char*>(msg.payload.data()), msg.payload.size(), 0);
         
-        std::cout << " Сообщение отправлено!" << std::endl;
+        std::cout << "✅ Сообщение отправлено!" << std::endl;
         
         close(sock);
         return true;
     }
 };
 
+// Глобальный указатель для обработчика сигнала
+WebSocketSniffer* g_sniffer = nullptr;
+
+// Обработчик Ctrl+C
+void signalHandler(int signum) {
+    std::cout << "\n\n🛑 Получен сигнал прерывания..." << std::endl;
+    if (g_sniffer) {
+        g_sniffer->stopCapture();
+    }
+}
+
 int main(int argc, char* argv[]) {
     std::cout << "╔══════════════════════════════════════════╗" << std::endl;
-    std::cout << "║  WebSocket Sniffer & Replay Tool v2      ║" << std::endl;
+    std::cout << "║  WebSocket Sniffer & Replay Tool v2     ║" << std::endl;
     std::cout << "╚══════════════════════════════════════════╝" << std::endl;
     std::cout << std::endl;
     
@@ -549,14 +564,20 @@ int main(int argc, char* argv[]) {
         std::cout << "Фильтр по порту (0 для всех портов): ";
         std::cin >> port;
         
+        // Установка обработчика сигнала
+        g_sniffer = &sniffer;
+        signal(SIGINT, signalHandler);
+        
         sniffer.startCapture(interface, port);
         
-        std::cout << "\nСохранить захваченные сообщения? (y/n): ";
+        std::cout << "\n💾 Сохранить захваченные сообщения? (y/n): ";
         char save;
         std::cin >> save;
         if (save == 'y' || save == 'Y') {
             sniffer.saveMessages("captured_messages.dat");
         }
+        
+        g_sniffer = nullptr;
     } 
     else if (mode == 2) {
         if (sniffer.loadMessages("captured_messages.dat")) {
